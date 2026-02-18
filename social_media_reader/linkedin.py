@@ -34,6 +34,8 @@ def get_linkedin_oembed(url: str) -> dict:
     Works for some post/article URLs. Returns 404 for many.
     When it works, returns: title, author_name, author_url, html (embed iframe).
     """
+    from .utils import validate_url
+    url = validate_url(url)
     oembed_url = f"https://www.linkedin.com/oembed?url={urllib.parse.quote(url, safe='')}&format=json"
 
     req = urllib.request.Request(oembed_url, headers={
@@ -339,29 +341,12 @@ def process_screen_recording(video_path: str, frame_interval: float = 3.0) -> di
 # ─── Summarize Fallback ────────────────────────────────────────
 
 def summarize_url(url: str) -> dict:
-    """
-    Fallback: use the `summarize` CLI tool to extract content from a URL.
-    
-    Useful when oEmbed and OG scraping both fail (login-walled content).
-    Requires the `summarize` CLI to be installed (brew install steipete/tap/summarize).
-    
-    Returns:
-        dict with: method, text, error (if any)
-    """
-    import shutil
-    if not shutil.which("summarize"):
-        return {"method": "summarize", "error": "summarize CLI not installed"}
+    """Fallback: use the `summarize` CLI tool to extract content from a URL.
 
-    try:
-        result = subprocess.run(
-            ["summarize", url, "--extract-only"],
-            capture_output=True, text=True, timeout=60
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return {"method": "summarize", "text": result.stdout.strip()}
-        return {"method": "summarize", "error": f"exit {result.returncode}: {result.stderr[:200]}"}
-    except Exception as e:
-        return {"method": "summarize", "error": str(e)}
+    Delegates to utils.summarize_url. Kept here for backward compatibility.
+    """
+    from .utils import summarize_url as _summarize
+    return _summarize(url)
 
 
 # ─── Testing ───────────────────────────────────────────────────

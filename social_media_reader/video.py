@@ -50,6 +50,8 @@ def _check_ffmpeg():
 
 def extract_video_metadata(url: str) -> dict:
     """Extract metadata from a video URL without downloading."""
+    from .utils import validate_url
+    url = validate_url(url)
     yt_dlp = _get_yt_dlp()
     ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
 
@@ -79,6 +81,8 @@ def extract_video_metadata(url: str) -> dict:
 
 def download_video(url: str, output_dir: Optional[str] = None) -> dict:
     """Download a video from URL via yt-dlp."""
+    from .utils import validate_url
+    url = validate_url(url)
     yt_dlp = _get_yt_dlp()
     if output_dir is None:
         output_dir = tempfile.mkdtemp(prefix="smr_video_")
@@ -246,9 +250,11 @@ def _transcribe_with_gemini(audio_path: str) -> str:
     with open(audio_path, "rb") as f:
         audio_data = base64.b64encode(f.read()).decode("utf-8")
 
-    # Limit to ~10MB of audio data
-    if len(audio_data) > 10_000_000:
-        audio_data = audio_data[:10_000_000]
+    # Limit to ~10MB of raw audio (~13.3MB base64). Truncate at 4-byte
+    # boundary to keep base64 valid, though this still cuts the audio mid-stream.
+    max_b64_len = 13_333_336  # 10MB raw ≈ ceil(10M * 4/3), aligned to 4
+    if len(audio_data) > max_b64_len:
+        audio_data = audio_data[:max_b64_len]
 
     url = GEMINI_API_URL.format(model="gemini-3-flash-preview") + f"?key={api_key}"
     payload = {

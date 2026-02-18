@@ -42,6 +42,8 @@ def _get_api_key() -> str:
 
 def _download_image(url: str) -> tuple:
     """Download image from URL and return (base64_data, mime_type)."""
+    from .utils import validate_url
+    url = validate_url(url)
     req = urllib.request.Request(url, headers={"User-Agent": "curl/7.0"})
     with urllib.request.urlopen(req, timeout=30) as resp:
         content_type = resp.headers.get("Content-Type", "image/jpeg")

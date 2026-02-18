@@ -2,15 +2,21 @@
 
 import re
 import subprocess
-import json
 from html import unescape
 from urllib.parse import urlparse
 
 
 def _normalize_url(url: str) -> str:
-    """Ensure URL is a proper Instagram post URL."""
-    url = url.strip().rstrip("/")
+    """Ensure URL is a proper Instagram post URL.
+
+    Validates the URL and normalizes it to the canonical Instagram form.
+    Raises ValueError if the URL is not a valid Instagram URL.
+    """
+    from .utils import validate_url
+    url = validate_url(url)
     parsed = urlparse(url)
+    if not re.match(r"(www\.)?(instagram\.com|instagr\.am)", parsed.hostname or ""):
+        raise ValueError(f"Not an Instagram URL: {url}")
     path = parsed.path.rstrip("/")
     return f"https://www.instagram.com{path}/"
 
@@ -141,29 +147,12 @@ def get_instagram_metadata(url: str) -> dict:
 
 
 def summarize_url(url: str) -> dict:
-    """
-    Fallback: use the `summarize` CLI tool to extract content from a URL.
-    
-    Useful when embed scraping fails (blocked, login-walled, etc.).
-    Requires the `summarize` CLI to be installed (brew install steipete/tap/summarize).
-    
-    Returns:
-        dict with: method, text, error (if any)
-    """
-    import shutil
-    if not shutil.which("summarize"):
-        return {"method": "summarize", "error": "summarize CLI not installed"}
+    """Fallback: use the `summarize` CLI tool to extract content from a URL.
 
-    try:
-        result = subprocess.run(
-            ["summarize", url, "--extract-only"],
-            capture_output=True, text=True, timeout=60
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return {"method": "summarize", "text": result.stdout.strip()}
-        return {"method": "summarize", "error": f"exit {result.returncode}: {result.stderr[:200]}"}
-    except Exception as e:
-        return {"method": "summarize", "error": str(e)}
+    Delegates to utils.summarize_url. Kept here for backward compatibility.
+    """
+    from .utils import summarize_url as _summarize
+    return _summarize(url)
 
 
 if __name__ == "__main__":
