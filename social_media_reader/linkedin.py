@@ -83,6 +83,16 @@ def extract_linkedin_metadata(url: str) -> dict:
     except Exception:
         pass
 
+    # Try summarize CLI as last resort
+    summary = summarize_url(url)
+    if not summary.get("error"):
+        return {
+            "method": "summarize",
+            "url": url,
+            "description": summary["text"][:2000],
+            "images": [],
+        }
+
     return {
         "method": "failed",
         "url": url,
@@ -324,6 +334,34 @@ def process_screen_recording(video_path: str, frame_interval: float = 3.0) -> di
 
     print(f"   Done — extracted {len(result['combined_text'])} chars of text")
     return result
+
+
+# ─── Summarize Fallback ────────────────────────────────────────
+
+def summarize_url(url: str) -> dict:
+    """
+    Fallback: use the `summarize` CLI tool to extract content from a URL.
+    
+    Useful when oEmbed and OG scraping both fail (login-walled content).
+    Requires the `summarize` CLI to be installed (brew install steipete/tap/summarize).
+    
+    Returns:
+        dict with: method, text, error (if any)
+    """
+    import shutil
+    if not shutil.which("summarize"):
+        return {"method": "summarize", "error": "summarize CLI not installed"}
+
+    try:
+        result = subprocess.run(
+            ["summarize", url, "--extract-only"],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return {"method": "summarize", "text": result.stdout.strip()}
+        return {"method": "summarize", "error": f"exit {result.returncode}: {result.stderr[:200]}"}
+    except Exception as e:
+        return {"method": "summarize", "error": str(e)}
 
 
 # ─── Testing ───────────────────────────────────────────────────

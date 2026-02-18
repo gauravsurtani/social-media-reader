@@ -158,8 +158,19 @@ def main():
                         help="Skip vision analysis (just extract images/metadata)")
     parser.add_argument("--images-only", action="store_true",
                         help="Only print image URLs")
+    parser.add_argument("--summarize", action="store_true",
+                        help="Extract text content from URL using summarize CLI (fallback for blocked sites)")
 
     args = parser.parse_args()
+
+    if args.summarize:
+        from .instagram import summarize_url as ig_summarize
+        result = ig_summarize(args.url)
+        if result.get("error"):
+            print(f"⚠️  {result['error']}")
+            sys.exit(1)
+        print(result.get("text", "No content extracted"))
+        return
 
     if args.images_only:
         platform = detect_platform(args.url)

@@ -140,6 +140,32 @@ def get_instagram_metadata(url: str) -> dict:
     }
 
 
+def summarize_url(url: str) -> dict:
+    """
+    Fallback: use the `summarize` CLI tool to extract content from a URL.
+    
+    Useful when embed scraping fails (blocked, login-walled, etc.).
+    Requires the `summarize` CLI to be installed (brew install steipete/tap/summarize).
+    
+    Returns:
+        dict with: method, text, error (if any)
+    """
+    import shutil
+    if not shutil.which("summarize"):
+        return {"method": "summarize", "error": "summarize CLI not installed"}
+
+    try:
+        result = subprocess.run(
+            ["summarize", url, "--extract-only"],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return {"method": "summarize", "text": result.stdout.strip()}
+        return {"method": "summarize", "error": f"exit {result.returncode}: {result.stderr[:200]}"}
+    except Exception as e:
+        return {"method": "summarize", "error": str(e)}
+
+
 if __name__ == "__main__":
     import sys
     test_url = sys.argv[1] if len(sys.argv) > 1 else "https://www.instagram.com/p/DUaUSgSEvQT/"
