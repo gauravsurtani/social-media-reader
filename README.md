@@ -130,3 +130,23 @@ python tests/test_instagram.py  # Instagram extraction (requires network)
 ## License
 
 MIT
+
+## Roadmap
+
+### Phase 1 (Current) ✅
+- Instagram embed scraping + vision analysis
+- LinkedIn oEmbed + paste mode
+- Video processing (yt-dlp + ffmpeg + transcription)
+- CLI tool
+
+### Phase 2 (Planned)
+- **Android Share Intent app** — "Share to Data" from any app on Pixel, sends content to Telegram bot (Priority — Captain uses Pixel 9 Pro)
+- **iOS Shortcut** — same flow for iOS devices
+- **Telegram bot integration** — auto-process any URL shared in chat
+- **Content tagging + categorization** (Seven's habit layer)
+- **Retention quizzes** on consumed content
+
+### Phase 3 (Future)
+- Browser extension (Chrome/Firefox) — one-click capture from desktop
+- Webhook receiver — accept content pushes from any source
+- Multi-model consensus — run multiple vision models for richer analysis
