@@ -201,13 +201,41 @@ def extract_audio(video_path: str, output_dir: Optional[str] = None) -> str:
     return audio_path
 
 
-def transcribe_audio(audio_path: str) -> str:
+def _transcribe_with_faster_whisper(audio_path: str, model_name: str = "tiny",
+                                     language: Optional[str] = None) -> Optional[str]:
     """
-    Transcribe audio using Gemini API.
+    Transcribe audio using faster-whisper (local, no API cost).
     
-    Sends audio file to Gemini for speech-to-text transcription.
-    Falls back to a note if audio is empty/silent.
+    Returns transcription text, or None if faster-whisper is unavailable.
+    Uses CPU with int8 quantization by default (no GPU in this environment).
     """
+    try:
+        # faster-whisper may be installed in /tmp/pylibs2 or system-wide
+        for lib_path in ["/tmp/pylibs2", "/tmp/pylibs"]:
+            if lib_path not in sys.path:
+                sys.path.insert(0, lib_path)
+
+        from faster_whisper import WhisperModel
+    except ImportError:
+        return None
+
+    try:
+        model = WhisperModel(model_name, device="cpu", compute_type="int8")
+        kwargs = {"beam_size": 5, "vad_filter": True}
+        if language:
+            kwargs["language"] = language
+        segments, info = model.transcribe(audio_path, **kwargs)
+        text = " ".join(s.text for s in segments).strip()
+        if not text:
+            return "[No speech detected]"
+        return text
+    except Exception as e:
+        print(f"   ⚠️  faster-whisper failed: {e}")
+        return None
+
+
+def _transcribe_with_gemini(audio_path: str) -> str:
+    """Transcribe audio using Gemini API (cloud fallback)."""
     import base64
     import urllib.request
 
@@ -215,12 +243,6 @@ def transcribe_audio(audio_path: str) -> str:
 
     api_key = _get_api_key()
 
-    # Check file size — skip if too small (likely silent)
-    file_size = os.path.getsize(audio_path)
-    if file_size < 1000:
-        return "[No audio or silent video]"
-
-    # Gemini can handle audio files
     with open(audio_path, "rb") as f:
         audio_data = base64.b64encode(f.read()).decode("utf-8")
 
@@ -245,6 +267,37 @@ def transcribe_audio(audio_path: str) -> str:
         return result["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
         return f"[Transcription failed: {e}]"
+
+
+def transcribe_audio(audio_path: str, model: str = "tiny",
+                     language: Optional[str] = None) -> str:
+    """
+    Transcribe audio with graceful fallback:
+    1. Try faster-whisper (local, fast, no API cost)
+    2. Fall back to Gemini API if faster-whisper unavailable
+    
+    Args:
+        audio_path: Path to WAV audio file
+        model: faster-whisper model name (default: tiny for speed on CPU)
+        language: Language code (e.g. 'en') or None for auto-detect
+    
+    Returns:
+        Transcription text
+    """
+    # Check file size — skip if too small (likely silent)
+    file_size = os.path.getsize(audio_path)
+    if file_size < 1000:
+        return "[No audio or silent video]"
+
+    # Try faster-whisper first (local, no API cost)
+    result = _transcribe_with_faster_whisper(audio_path, model_name=model, language=language)
+    if result is not None:
+        print(f"   (transcribed with faster-whisper, model={model})")
+        return result
+
+    # Fall back to Gemini API
+    print("   (faster-whisper unavailable, using Gemini API)")
+    return _transcribe_with_gemini(audio_path)
 
 
 # ─── Full Processing Pipeline ─────────────────────────────────
