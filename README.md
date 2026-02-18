@@ -121,11 +121,27 @@ python tests/test_instagram.py  # Instagram extraction (requires network)
 
 ## Requirements
 
+### Required
 - Python 3.10+
 - curl (for HTTP requests)
-- ffmpeg (for video processing)
-- yt-dlp (for video downloads)
+- ffmpeg (for video/audio processing)
 - Google Gemini API key (for vision/audio analysis)
+
+### Optional
+- **yt-dlp** — video downloads (YouTube, TikTok, etc.)
+- **faster-whisper** — local audio transcription, no API cost (`pip install faster-whisper`)
+- **summarize** — fallback content extraction for blocked URLs (`brew install steipete/tap/summarize`)
+
+## OpenClaw Skill Integrations
+
+This project integrates several [OpenClaw](https://openclaw.com) skills:
+
+| Skill | Status | What it does |
+|-------|--------|-------------|
+| **faster-whisper** | ✅ Integrated | Local speech-to-text in `video.py`. Tries faster-whisper first (free, offline), falls back to Gemini API. Uses `tiny` model + int8 on CPU. |
+| **summarize** | ✅ Integrated | Fallback URL text extraction in `instagram.py`, `linkedin.py`, and `--summarize` CLI flag. For when embed scraping is blocked. |
+| **video-frames** | ⏭️ Skipped | Thin ffmpeg wrapper. `video.py` already has a more robust `extract_frames()` with interval calculation, max frames, and duration-aware spacing. |
+| **gemini CLI** | ⏭️ Skipped | CLI wrapper around the same Gemini API that `vision.py` already calls directly. Would add indirection with no benefit. |
 
 ## License
 

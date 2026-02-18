@@ -1,4 +1,18 @@
+# Required
 requests>=2.28.0
 beautifulsoup4>=4.12.0
+
+# Optional: vision/audio analysis (needs GEMINI_API_KEY)
 google-generativeai>=0.3.0
+
+# Optional: video downloads
 yt-dlp>=2024.1.0
+
+# Optional: local audio transcription (no API cost, works offline)
+# Uses tiny model + int8 quantization on CPU by default
+# Falls back to Gemini API if not installed
+faster-whisper>=1.0.0
+
+# Optional: URL content extraction fallback
+# Install via: brew install steipete/tap/summarize
+# (not a pip package — CLI tool)
