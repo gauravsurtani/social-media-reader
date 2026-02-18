@@ -1,69 +1,170 @@
-# iOS Shortcut: Share to Social Media Reader
+# iOS Shortcut: "Share to Data" — Capture & Send to Telegram
 
-Build an iOS Shortcut that sends any shared URL to your social-media-reader server for processing.
+An iOS Shortcut that captures content (text, screenshots, URLs) from **any** app and sends it to a Telegram bot for processing. Works with LinkedIn, Instagram, Safari, or any app with a Share Sheet.
+
+## Why This Approach?
+
+LinkedIn and many apps block server-side scraping. But you can see the content on your phone. This shortcut captures what's on your screen and sends it to your Telegram bot (Data) for AI-powered analysis.
 
 ## Prerequisites
 
-- social-media-reader running on a server with a public endpoint (or via SSH tunnel)
-- iOS 15+ with Shortcuts app
+- iOS 16+ with Shortcuts app
+- A Telegram bot token (e.g., Data bot: `@commander_data_clawdbot`)
+- Your Telegram chat ID (for DM delivery)
 
-## Step-by-Step Setup
+## Shortcut Actions (Step by Step)
 
-### 1. Create the Shortcut
+### Create New Shortcut
+1. Open **Shortcuts** → tap **+**
+2. Name: **"Share to Data"**
+3. Tap ⓘ → enable **Show in Share Sheet**
+4. Input types: **URLs, Text, Images, Media**
 
-1. Open **Shortcuts** app → tap **+** (new shortcut)
-2. Name it: **"Read Post"**
+### Action 1: Receive Input
+```
+Receive [Any] input from [Share Sheet]
+If there's no input: [Continue]
+```
 
-### 2. Accept Share Input
+### Action 2: Set Variable — Shared Content
+```
+Set variable [SharedContent] to [Shortcut Input]
+```
 
-1. Tap **"Add Action"** → search **"Receive"**
-2. Select **"Receive input from Share Sheet"**
-3. Set input type to **URLs**
+### Action 3: Take Screenshot (Optional)
+For LinkedIn posts where text isn't shareable:
+```
+If [SharedContent] [does not have any value]
+  Take Screenshot
+  Set variable [Screenshot] to [Screenshot]
+End If
+```
 
-### 3. Extract URL
+### Action 4: Get Text from Input
+```
+Get [Text] from [SharedContent]
+Set variable [PostText] to [Text]
+```
 
-1. Add action: **"Get URLs from Input"**
-2. This extracts the shared URL
+### Action 5: Get URLs from Input
+```
+Get [URLs] from [SharedContent]
+Set variable [PostURL] to [URLs]
+```
 
-### 4. Send to Server
+### Action 6: Build Message
+```
+Text:
+---
+📱 Shared from iOS
 
-**Option A: Local server via SSH**
+URL: [PostURL]
 
-1. Add action: **"Run Script over SSH"**
-2. Configure:
-   - Host: your server IP
-   - User: your username
-   - Script: `cd /path/to/social-media-reader && python -m social_media_reader "SHORTCUT_INPUT" --no-vision`
-3. Replace `SHORTCUT_INPUT` with the URL variable from step 3
+Content:
+[PostText]
+---
 
-**Option B: HTTP API endpoint**
+Set variable [Message] to [Text]
+```
 
-If you've set up a web API wrapper:
+### Action 7: Send Text to Telegram Bot
+```
+Get Contents of URL:
+  URL: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendMessage
+  Method: POST
+  Headers: Content-Type = application/json
+  Request Body (JSON):
+    {
+      "chat_id": "<YOUR_CHAT_ID>",
+      "text": [Message],
+      "parse_mode": "Markdown"
+    }
+```
 
-1. Add action: **"Get Contents of URL"**
-2. URL: `https://your-server.com/api/read?url=SHORTCUT_INPUT`
-3. Method: GET
+### Action 8: Send Screenshot to Telegram (if taken)
+```
+If [Screenshot] [has any value]
+  Get Contents of URL:
+    URL: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendPhoto
+    Method: POST
+    Request Body (Form):
+      chat_id: <YOUR_CHAT_ID>
+      photo: [Screenshot]
+      caption: "Screenshot from iOS Share"
+End If
+```
 
-### 5. Display Result
+### Action 9: Send Images/Media (if shared)
+```
+Get [Images] from [SharedContent]
+If [Images] [has any value]
+  Repeat with each [Image] in [Images]
+    Get Contents of URL:
+      URL: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendPhoto
+      Method: POST
+      Request Body (Form):
+        chat_id: <YOUR_CHAT_ID>
+        photo: [Repeat Item]
+        caption: "Image from shared post"
+  End Repeat
+End If
+```
 
-1. Add action: **"Show Result"**
-2. Pass the output from step 4
+### Action 10: Confirmation
+```
+Show Notification: "Sent to Data ✅"
+```
 
-### 6. Add to Share Sheet
+## Configuration
 
-1. Tap the settings icon (top right)
-2. Enable **"Show in Share Sheet"**
-3. Set input types: **URLs, Text**
+Replace these placeholders:
+- `<YOUR_BOT_TOKEN>` — Your Telegram bot HTTP API token
+- `<YOUR_CHAT_ID>` — Your personal Telegram user ID (get it by messaging `@userinfobot`)
 
-## Usage
+## Usage Workflows
 
-1. In any app (Instagram, LinkedIn, Safari), tap **Share**
-2. Select **"Read Post"** from your shortcuts
-3. See extracted content in a popup
+### LinkedIn Post (text visible)
+1. Open LinkedIn post → tap **Share** → **"Share to Data"**
+2. Shortcut captures shared text + URL → sends to Telegram
 
-## Tips
+### LinkedIn Post (text not in share)
+1. Open LinkedIn post → take a manual screenshot
+2. Open Screenshots → **Share** → **"Share to Data"**
+3. Screenshot sent to Telegram → Data uses Gemini Vision to read it
 
-- Add a **"Copy to Clipboard"** action after showing results
-- Use **"Save to Files"** to archive extracted content
-- Chain with **"Add to Notes"** for a reading log
-- For vision analysis, remove `--no-vision` (requires Gemini API key on server)
+### Instagram Post
+1. Open post → tap **Share** → **"Share to Data"**
+2. URL captured → Data runs embed scraper server-side
+
+### Any Webpage (Safari)
+1. Tap **Share** → **"Share to Data"**
+2. URL + page title sent to Telegram
+
+## Advanced: Screen Recording for LinkedIn Carousels
+
+For multi-slide LinkedIn carousels:
+
+1. Start iOS screen recording
+2. Slowly swipe through all carousel slides
+3. Stop recording → **Share** video → **"Share to Data"**
+4. Data receives video → extracts frames every 5s → analyzes each with Vision
+
+This uses the video processing pipeline in `social_media_reader/video.py`.
+
+## Telegram Bot Processing
+
+On the server side, Data (or your bot) receives the message and can:
+
+```python
+# When bot receives a URL
+from social_media_reader import cli
+result = cli.process_url(url, analyze=True)
+
+# When bot receives a photo
+from social_media_reader.vision import analyze_image
+analysis = analyze_image(photo_path, "What does this social media post say?")
+
+# When bot receives a video (screen recording)
+from social_media_reader.video import process_video_file
+result = process_video_file(video_path)
+```
