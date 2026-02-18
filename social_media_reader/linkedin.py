@@ -304,7 +304,7 @@ def process_screen_recording(video_path: str, frame_interval: float = 3.0) -> di
             from .vision import _get_api_key, GEMINI_API_URL
 
             api_key = _get_api_key()
-            url = GEMINI_API_URL.format(model="gemini-2.0-flash") + f"?key={api_key}"
+            url = GEMINI_API_URL.format(model="gemini-3-flash-preview") + f"?key={api_key}"
             payload = {
                 "contents": [{"parts": [{"text":
                     f"Below are text extractions from sequential screenshots of scrolling through "

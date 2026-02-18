@@ -228,7 +228,7 @@ def transcribe_audio(audio_path: str) -> str:
     if len(audio_data) > 10_000_000:
         audio_data = audio_data[:10_000_000]
 
-    url = GEMINI_API_URL.format(model="gemini-2.0-flash") + f"?key={api_key}"
+    url = GEMINI_API_URL.format(model="gemini-3-flash-preview") + f"?key={api_key}"
     payload = {
         "contents": [{"parts": [
             {"text": "Transcribe this audio. Return only the transcription text, nothing else. If there is no speech, return '[No speech detected]'."},
